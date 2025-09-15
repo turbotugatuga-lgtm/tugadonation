@@ -1,291 +1,89 @@
-<!doctype html>
-<html lang="pt-BR">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Turbo Tuga — Simple Lottery Tool</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8">
+  <title>Turbo Tuga Campaign</title>
   <style>
-    body { font-family: Inter, system-ui, Arial; max-width: 980px; margin: 28px auto; padding: 0 16px; color:#111 }
-    h1 { margin-bottom: 6px }
-    .grid { display:flex; gap:16px; align-items:flex-start; }
-    .card { border:1px solid #e6e6e6; padding:12px; border-radius:8px; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.03); }
-    textarea { width:100%; min-height:120px; font-family:monospace; padding:8px; }
-    table { width:100%; border-collapse:collapse; margin-top:8px; }
-    th,td { border:1px solid #eee; padding:6px 8px; text-align:left; font-size:13px; }
-    button { padding:8px 12px; border-radius:6px; border:0; cursor:pointer; background:#0070f3; color:white; }
-    .muted { color:#666; font-size:13px }
-    .small { font-size:13px }
-    .danger { background:#e11; }
-    .success { background:#0a0; }
-    input[type=file] { display:block; margin-top:8px; }
-    .stats { display:flex; gap:12px; margin-top:8px; }
-    .stat { border-radius:6px; padding:8px 10px; background:#f7f9fc; border:1px solid #f0f3f8 }
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f4f6f8; }
+    h1 { color: #333; }
+    .box { background: #fff; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    button { padding: 8px 16px; margin-top: 10px; border: none; border-radius: 5px; background: #0070f3; color: white; cursor: pointer; }
+    button:hover { background: #005bb5; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    table, th, td { border: 1px solid #ddd; }
+    th, td { padding: 8px; text-align: center; }
   </style>
 </head>
 <body>
-  <h1>Turbo Tuga — Simple Lottery Tool</h1>
-  <p class="muted">Versão leve: cole um CSV de compras ou importe arquivo. Cada US$3 = 1 bilhete. Sorteio com RNG criptográfico. Exporta CSV de vencedores.</p>
+  <h1>Turbo Tuga — Campaign Dashboard</h1>
+  <p>🎯 Goal: <strong>$1,000,000</strong> market cap</p>
+  <p>🐢 $10,000 will be donated to turtle rescue projects if the goal is reached!</p>
 
-  <div class="grid">
-    <div style="flex:1" class="card">
-      <h3>1) Importar compras (CSV) ou colar</h3>
-      <p class="small muted">Formato CSV esperado (cabeçalho OK): <code>Date,Wallet,ValueUSD</code></p>
-      <input id="fileInput" type="file" accept=".csv,text/csv" />
-      <p class="muted small">OU cole o CSV abaixo:</p>
-      <textarea id="csvArea" placeholder="Date,Wallet,ValueUSD\n2025-09-15,3N2xF...,3"></textarea>
-      <div style="margin-top:8px">
-        <button id="btnParse">Parse CSV / Import</button>
-        <button id="btnClear" style="background:#999;margin-left:6px">Clear</button>
-      </div>
+  <div class="box">
+    <h2>Register Purchase</h2>
+    <input type="text" id="wallet" placeholder="Wallet address" />
+    <input type="number" id="amount" placeholder="Amount in USD" />
+    <button onclick="addPurchase()">Add Purchase</button>
+  </div>
 
-      <h3 style="margin-top:16px">Manual add</h3>
-      <div style="display:flex;gap:8px">
-        <input id="mWallet" placeholder="Wallet (ex: 3N2xF...)" style="flex:2;padding:8px" />
-        <input id="mValue" placeholder="Value USD" type="number" style="flex:1;padding:8px" />
-        <button id="btnAdd" style="flex:0">Add</button>
-      </div>
+  <div class="box">
+    <h2>Purchases</h2>
+    <table id="purchaseTable">
+      <tr><th>Wallet</th><th>Amount (USD)</th><th>Tickets</th></tr>
+    </table>
+  </div>
 
-      <h3 style="margin-top:16px">Compradores</h3>
-      <div id="buyersWrap"></div>
-    </div>
-
-    <div style="width:360px" class="card">
-      <h3>2) Regras & Estatísticas</h3>
-      <p class="small">Min purchase per ticket: <strong>$3</strong></p>
-      <div class="stats">
-        <div class="stat"><strong id="statTotalUSD">0</strong><div class="muted small">Total USD</div></div>
-        <div class="stat"><strong id="statBuyers">0</strong><div class="muted small">Buyers</div></div>
-        <div class="stat"><strong id="statTickets">0</strong><div class="muted small">Tickets</div></div>
-      </div>
-
-      <h3 style="margin-top:12px">3) Sortear vencedores</h3>
-      <label class="small muted">Number of winners</label>
-      <input id="numWinners" type="number" value="3" style="width:100%;padding:8px;margin-top:6px" />
-      <div style="margin-top:8px">
-        <button id="btnDraw">Draw Winners</button>
-        <button id="btnExportCSV" style="margin-left:6px;background:#333">Export Winners CSV</button>
-      </div>
-      <p class="muted small" style="margin-top:8px">Winners are chosen without replacement; each wallet can win once.</p>
-
-      <h3 style="margin-top:12px">Winners</h3>
-      <div id="winnersWrap"></div>
-    </div>
+  <div class="box">
+    <h2>Draw Winners</h2>
+    <button onclick="drawWinners()">Draw 3 Winners</button>
+    <ul id="winners"></ul>
   </div>
 
   <script>
-  // Simple single-file lottery tool
-  // Uses crypto.getRandomValues for RNG and supports CSV import.
-  (function(){
-    const MIN_USD = 3;
+    let purchases = [];
+    let tickets = [];
 
-    // State
-    let purchases = []; // {date, wallet, usd, tokens, tickets}
-    let tickets = [];   // array of wallet strings (one per ticket)
-    let winners = [];   // {wallet, tokensAwarded}
+    function addPurchase() {
+      const wallet = document.getElementById("wallet").value.trim();
+      const amount = parseFloat(document.getElementById("amount").value);
 
-    // Elements
-    const fileInput = document.getElementById('fileInput');
-    const csvArea = document.getElementById('csvArea');
-    const btnParse = document.getElementById('btnParse');
-    const btnClear = document.getElementById('btnClear');
-    const buyersWrap = document.getElementById('buyersWrap');
-    const statTotalUSD = document.getElementById('statTotalUSD');
-    const statBuyers = document.getElementById('statBuyers');
-    const statTickets = document.getElementById('statTickets');
-    const btnAdd = document.getElementById('btnAdd');
-    const mWallet = document.getElementById('mWallet');
-    const mValue = document.getElementById('mValue');
-    const btnDraw = document.getElementById('btnDraw');
-    const winnersWrap = document.getElementById('winnersWrap');
-    const numWinnersInput = document.getElementById('numWinners');
-    const btnExportCSV = document.getElementById('btnExportCSV');
-
-    // Helpers
-    function parseCSVText(text) {
-      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length>0);
-      if (lines.length === 0) return [];
-      const header = lines[0].split(',').map(h=>h.trim().toLowerCase());
-      const hasHeader = header.includes('wallet') && header.includes('valueusd');
-      const dataLines = hasHeader ? lines.slice(1) : lines;
-      const rows = dataLines.map(l => {
-        const cols = l.split(',');
-        if (hasHeader) {
-          const map = {};
-          header.forEach((h,i)=>map[h]=cols[i] ? cols[i].trim() : '');
-          return {
-            date: map['date'] || '',
-            wallet: map['wallet'] || '',
-            usd: parseFloat(map['valueusd'] || map['value_usd'] || map['value'] || '0')
-          };
-        } else {
-          return {
-            date: cols[0] || '',
-            wallet: cols[1] || '',
-            usd: parseFloat(cols[2]||'0')
-          };
-        }
-      }).filter(r=>r.wallet && !isNaN(r.usd));
-      return rows;
-    }
-
-    function rebuildTickets() {
-      tickets = [];
-      purchases.forEach(p=>{
-        const t = Math.floor(p.usd / MIN_USD);
-        p.tickets = t;
-        for(let i=0;i<t;i++) tickets.push(p.wallet);
-      });
-      updateStats();
-    }
-
-    function updateStats(){
-      const totalUSD = purchases.reduce((s,p)=>s + Number(p.usd||0),0);
-      statTotalUSD.textContent = totalUSD.toFixed(2);
-      statBuyers.textContent = purchases.length;
-      statTickets.textContent = tickets.length;
-      renderBuyers();
-    }
-
-    function renderBuyers(){
-      if(purchases.length===0){
-        buyersWrap.innerHTML = '<p class="muted">No purchases yet. Import CSV or add manually.</p>';
+      if (!wallet || isNaN(amount) || amount < 3) {
+        alert("Enter a valid wallet and at least $3 purchase.");
         return;
       }
-      let html = '<table><thead><tr><th>Wallet</th><th>USD</th><th>Tickets</th><th>Actions</th></tr></thead><tbody>';
-      purchases.forEach((p, idx) => {
-        html += `<tr>
-          <td style="font-family:monospace">${escapeHtml(p.wallet)}</td>
-          <td>${(p.usd||0).toFixed(2)}</td>
-          <td>${p.tickets||0}</td>
-          <td><button data-idx="${idx}" class="btn-remove">Remove</button></td>
-        </tr>`;
-      });
-      html += '</tbody></table>';
-      buyersWrap.innerHTML = html;
-      // attach remove handlers
-      document.querySelectorAll('.btn-remove').forEach(btn=>{
-        btn.addEventListener('click', (e)=>{
-          const i = parseInt(btn.getAttribute('data-idx'),10);
-          purchases.splice(i,1);
-          rebuildTickets();
-        });
+
+      const ticketCount = Math.floor(amount / 3); // 1 ticket per $3
+      purchases.push({ wallet, amount, tickets: ticketCount });
+
+      for (let i = 0; i < ticketCount; i++) {
+        tickets.push(wallet);
+      }
+
+      updateTable();
+      document.getElementById("wallet").value = "";
+      document.getElementById("amount").value = "";
+    }
+
+    function updateTable() {
+      const table = document.getElementById("purchaseTable");
+      table.innerHTML = "<tr><th>Wallet</th><th>Amount (USD)</th><th>Tickets</th></tr>";
+
+      purchases.forEach(p => {
+        table.innerHTML += `<tr><td>${p.wallet}</td><td>$${p.amount.toFixed(2)}</td><td>${p.tickets}</td></tr>`;
       });
     }
 
-    function escapeHtml(s){ return (''+s).replace(/[&<>"'`]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c])); }
-
-    // Add manual
-    btnAdd.addEventListener('click', ()=>{
-      const w = (mWallet.value||'').trim();
-      const v = parseFloat(mValue.value||'0');
-      if (!w) return alert('Enter wallet');
-      if (!v || v <= 0) return alert('Enter value in USD');
-      purchases.push({ date: new Date().toISOString().slice(0,10), wallet: w, usd: v, tickets: 0 });
-      mWallet.value = ''; mValue.value = '';
-      rebuildTickets();
-    });
-
-    // Parse CSV area or file
-    btnParse.addEventListener('click', ()=>{
-      const text = csvArea.value.trim();
-      if (text) {
-        const rows = parseCSVText(text);
-        rows.forEach(r=>purchases.push({ date:r.date||'', wallet:r.wallet, usd: Number(r.usd||0), tickets:0 }));
-        rebuildTickets();
-        csvArea.value = '';
+    function drawWinners() {
+      if (tickets.length === 0) {
+        alert("No tickets yet!");
         return;
       }
-      // if no text, try file input
-      const file = fileInput.files[0];
-      if (!file) { alert('Paste CSV or choose a file'); return; }
-      const reader = new FileReader();
-      reader.onload = function(e){
-        const rows = parseCSVText(String(e.target.result));
-        rows.forEach(r=>purchases.push({ date:r.date||'', wallet:r.wallet, usd: Number(r.usd||0), tickets:0 }));
-        rebuildTickets();
-        fileInput.value = '';
-      };
-      reader.readAsText(file);
-    });
 
-    btnClear.addEventListener('click', ()=>{ if (!confirm('Clear all purchases and tickets?')) return; purchases=[]; tickets=[]; winners=[]; updateStats(); winnersWrap.innerHTML=''; });
+      let shuffled = [...tickets].sort(() => 0.5 - Math.random());
+      let selected = [...new Set(shuffled)].slice(0, 3);
 
-    // Draw winners using crypto RNG
-    function secureRandomInt(max) {
-      // returns integer in [0, max)
-      if (max <= 0) return 0;
-      const array = new Uint32Array(1);
-      window.crypto.getRandomValues(array);
-      return array[0] % max;
+      document.getElementById("winners").innerHTML = selected.map(w => `<li>${w}</li>`).join("");
     }
-
-    btnDraw.addEventListener('click', ()=>{
-      if (tickets.length === 0) return alert('No tickets available. Import purchases first.');
-      const numWinners = Math.max(1, Math.floor(Number(numWinnersInput.value) || 1));
-      // create pool copy
-      let pool = tickets.slice();
-      winners = [];
-      const seen = new Set();
-      while (winners.length < numWinners && pool.length > 0) {
-        const idx = secureRandomInt(pool.length);
-        const winnerWallet = pool[idx];
-        // remove all occurrences of this wallet to prevent same wallet winning again
-        pool = pool.filter(w => w !== winnerWallet);
-        if (seen.has(winnerWallet)) continue;
-        seen.add(winnerWallet);
-        winners.push({ wallet: winnerWallet, tokens: null });
-      }
-      // prompt tokens per winner
-      let tokensEach = prompt('Tokens to award per winner (number). Leave empty to set later.', '');
-      tokensEach = tokensEach ? tokensEach.trim() : '';
-      winners = winners.map(w => ({ ...w, tokens: tokensEach || '' }));
-      renderWinners();
-    });
-
-    function renderWinners(){
-      if (winners.length === 0) { winnersWrap.innerHTML = '<p class="muted">No winners yet.</p>'; return; }
-      let html = '<table><thead><tr><th>Wallet</th><th>Tokens</th></tr></thead><tbody>';
-      winners.forEach((w, i) => {
-        html += `<tr><td style="font-family:monospace">${escapeHtml(w.wallet)}</td><td><input data-idx="${i}" class="winnerTokens" value="${escapeHtml(w.tokens||'')}" style="width:140px;padding:6px" /></td></tr>`;
-      });
-      html += '</tbody></table><div style="margin-top:8px"><button id="btnSaveWinners" class="success">Save Winners CSV</button></div>';
-      winnersWrap.innerHTML = html;
-      document.getElementById('btnSaveWinners').addEventListener('click', ()=> {
-        // update values from inputs
-        document.querySelectorAll('.winnerTokens').forEach(inp=>{
-          const idx = Number(inp.getAttribute('data-idx'));
-          winners[idx].tokens = inp.value.trim();
-        });
-        downloadWinnersCSV();
-      });
-    }
-
-    function downloadWinnersCSV(){
-      if (winners.length===0) return alert('No winners to export');
-      const rows = [['Wallet','Tokens']];
-      winners.forEach(w=> rows.push([w.wallet, w.tokens || '']));
-      const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\\n');
-      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'winners.csv';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    }
-
-    btnExportCSV.addEventListener('click', ()=> {
-      // quick export current winners (if any) or prompt to draw first
-      if (winners.length === 0) return alert('No winners yet. Draw first.');
-      downloadWinnersCSV();
-    });
-
-    // initial empty
-    updateStats();
-
-  })();
   </script>
 </body>
 </html>

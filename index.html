@@ -1,106 +1,139 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<title>Turbo Tuga Campaign</title>
-<style>
-body { font-family: Arial, sans-serif; margin: 40px; background: #f4f6f8; }
-h1 { color: #333; }
-.box { background: #fff; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
-button { padding: 8px 16px; margin: 5px; border: none; border-radius: 5px; background: #0070f3; color: white; cursor: pointer; }
-button:hover { background: #005bb5; }
-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-table, th, td { border: 1px solid #ddd; }
-th, td { padding: 8px; text-align: center; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Turbo Tuga Campaign</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f4f6f8; }
+    h1 { color: #333; }
+    .box { background: #fff; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    button { padding: 8px 16px; margin: 5px; border: none; border-radius: 5px; background: #0070f3; color: white; cursor: pointer; }
+    button:hover { background: #005bb5; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    table, th, td { border: 1px solid #ddd; }
+    th, td { padding: 8px; text-align: center; }
+  </style>
 </head>
 <body>
-<h1>Turbo Tuga — Campaign Dashboard</h1>
-<p>🎯 Goal: <strong>$1,000,000</strong> market cap</p>
-<p>🐢 $10,000 will be donated to turtle rescue projects if the goal is reached!</p>
+  <h1>Turbo Tuga — Campaign Dashboard</h1>
+  <p>🎯 Meta: <strong>$1.000.000</strong> de capitalização de mercado</p>
+  <p>🐢 Se a meta for atingida, <strong>$10.000</strong> serão doados para projetos de resgate de tartarugas!</p>
 
-<div class="box">
-  <h2>1) Import JSON from SolScan</h2>
-  <input type="file" id="jsonFile" accept=".json"/>
-  <button onclick="loadJSON()">Load JSON</button>
-</div>
+  <div class="box">
+    <h2>1) Carregar Dados dos Holders</h2>
+    <button onclick="loadHolders()">Carregar Holders</button>
+  </div>
 
-<div class="box">
-  <h2>2) Purchases & Tickets</h2>
-  <button onclick="exportCSV()">📥 Export CSV</button>
-  <table id="purchaseTable">
-    <tr><th>Wallet</th><th>Amount (USD)</th><th>Tickets</th></tr>
-  </table>
-</div>
+  <div class="box">
+    <h2>2) Compras & Bilhetes</h2>
+    <button onclick="exportCSV()">📥 Exportar CSV</button>
+    <table id="purchaseTable">
+      <tr><th>Carteira</th><th>Valor (USD)</th><th>Bilhetes</th></tr>
+    </table>
+  </div>
 
-<div class="box">
-  <h2>3) Draw Winners</h2>
-  <button onclick="drawWinners()">🎲 Draw 3 Winners</button>
-  <ul id="winners"></ul>
-</div>
+  <div class="box">
+    <h2>3) Sortear Vencedores</h2>
+    <button onclick="drawWinners()">🎲 Sortear 3 Vencedores</button>
+    <ul id="winners"></ul>
+  </div>
 
-<script>
-let purchases = [];
-let tickets = [];
-const MIN_USD = 3;
+  <script>
+    const apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjcmVhdGVkQXQiOjE3NTcwMzQwMjcyODIsImVtYWlsIjoidHVyYm90dWdhdHVnYUBnbWFpbC5jb20iLCJhY3Rpb24iOiJ0b2tlbi1hcGkiLCJhcGlWZXJzaW9uIjoidjIiLCJpYXQiOjE3NTcwMzQwMjd9.244yHHTSQhMb-afA0r9HlWhvhTuMAcdqj91bru0BvHM';
+    const tokenAddress = '9QLR3WrENnBGsv6kL33d4kDHvak71k2hBvKbHgEDwQtQ';
+    const minAmount = 3; // Valor mínimo para gerar bilhete (em USD)
 
-function loadJSON() {
-  const fileInput = document.getElementById("jsonFile");
-  const file = fileInput.files[0];
-  if(!file) return alert("Select a JSON file");
+    let purchases = [];
+    let tickets = [];
 
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const data = JSON.parse(e.target.result);
-      // Espera array de objetos: {wallet: "...", amount: 3.5}
+    function loadHolders() {
+      fetch(`https://pro-api.solscan.io/v2.0/token/holders?address=${tokenAddress}&page=1&page_size=100`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+        },
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          processHolders(data.data.items);
+        } else {
+          alert('Erro ao carregar dados dos holders.');
+        }
+      })
+      .catch(error => {
+        console.error('Erro ao obter dados:', error);
+        alert('Erro ao carregar dados dos holders.');
+      });
+    }
+
+    function processHolders(holders) {
       purchases = [];
       tickets = [];
-      data.forEach(item => {
-        if(item.wallet && item.amount >= MIN_USD) {
-          const t = Math.floor(item.amount / MIN_USD);
-          purchases.push({wallet: item.wallet, amount: item.amount, tickets: t});
-          for(let i=0;i<t;i++) tickets.push(item.wallet);
+      holders.forEach(holder => {
+        const amount = holder.amount / Math.pow(10, holder.decimals); // Converte para a unidade base do token
+        if (amount >= minAmount) {
+          const ticketCount = Math.floor(amount / minAmount);
+          purchases.push({
+            wallet: holder.owner,
+            amount: amount,
+            tickets: ticketCount,
+          });
+          for (let i = 0; i < ticketCount; i++) {
+            tickets.push(holder.owner);
+          }
         }
       });
       updateTable();
-      alert(`Loaded ${purchases.length} purchases`);
-    } catch(err) {
-      alert("Invalid JSON format");
-      console.error(err);
     }
-  };
-  reader.readAsText(file);
-}
 
-function updateTable() {
-  const table = document.getElementById("purchaseTable");
-  table.innerHTML = "<tr><th>Wallet</th><th>Amount (USD)</th><th>Tickets</th></tr>";
-  purchases.forEach(p => {
-    table.innerHTML += `<tr><td>${p.wallet}</td><td>$${p.amount.toFixed(2)}</td><td>${p.tickets}</td></tr>`;
-  });
-}
+    function updateTable() {
+      const table = document.getElementById('purchaseTable');
+      table.innerHTML = '<tr><th>Carteira</th><th>Valor (USD)</th><th>Bilhetes</th></tr>';
+      purchases.forEach(p => {
+        const row = table.insertRow();
+        row.insertCell(0).textContent = p.wallet;
+        row.insertCell(1).textContent = p.amount.toFixed(2);
+        row.insertCell(2).textContent = p.tickets;
+      });
+    }
 
-function drawWinners() {
-  if(tickets.length===0) return alert("No tickets available!");
-  let shuffled = [...tickets].sort(()=>0.5-Math.random());
-  let selected = [...new Set(shuffled)].slice(0,3);
-  document.getElementById("winners").innerHTML = selected.map(w=>`<li>${w}</li>`).join("");
-}
+    function drawWinners() {
+      if (tickets.length === 0) {
+        alert('Nenhum bilhete disponível para sorteio.');
+        return;
+      }
+      const shuffled = tickets.sort(() => Math.random() - 0.5);
+      const uniqueWinners = [...new Set(shuffled)].slice(0, 3);
+      const winnersList = document.getElementById('winners');
+      winnersList.innerHTML = '';
+      uniqueWinners.forEach(wallet => {
+        const li = document.createElement('li');
+        li.textContent = wallet;
+        winnersList.appendChild(li);
+      });
+    }
 
-function exportCSV() {
-  if(purchases.length===0) return alert("No purchases to export!");
-  let csv = "Wallet,Amount (USD),Tickets\n";
-  purchases.forEach(p => { csv += `${p.wallet},${p.amount},${p.tickets}\n`; });
-  let blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
-  let url = URL.createObjectURL(blob);
-  let link = document.createElement("a");
-  link.setAttribute("href", url);
-  link.setAttribute("download", "purchases.csv");
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
-</script>
+    function exportCSV() {
+      if (purchases.length === 0) {
+        alert('Nenhuma compra para exportar!');
+        return;
+      }
+      const csvRows = [
+        ['Carteira', 'Valor (USD)', 'Bilhetes'],
+        ...purchases.map(p => [p.wallet, p.amount.toFixed(2), p.tickets]),
+      ];
+      const csvContent = csvRows.map(row => row.join(',')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'purchases.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  </script>
 </body>
 </html>
